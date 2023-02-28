@@ -1,0 +1,8 @@
+build/
+*.npy
+compile_commands.json
+.cache/
+tags
+tags.lock
+log.txt
+.DS_Store
