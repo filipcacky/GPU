@@ -6,3 +6,4 @@ tags
 tags.lock
 log.txt
 .DS_Store
+data/*.txt

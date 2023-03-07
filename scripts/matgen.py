@@ -4,13 +4,6 @@ import numpy as np
 import argparse
 
 
-def is_diagonally_dominant(A):
-    """ Checks whether all numbers on the diagonal are larger than the sums of their respective rows """
-    diag = np.diag(np.abs(A))
-    row_sum = np.sum(np.abs(A), axis=1) - diag
-    return np.all(diag > row_sum)
-
-
 def is_symmetric(A):
     """ Checks whether the matrix A is symmetric along the main diagonal """
     return np.array_equal(A, A.T)
@@ -19,11 +12,6 @@ def is_symmetric(A):
 def is_positively_definite(A):
     """ Checks if all eigenvalues are positive """
     return np.all(np.linalg.eigvals(A) > 0)
-
-
-def has_positive_diagonal(A):
-    """ Checks whether all numbers on the diagonal are positive """
-    return np.all(np.diag(A) > 0)
 
 
 def spectral_radius(A):
@@ -45,6 +33,20 @@ def make_lhs(size, y):
     return result
 
 
+def make_lhs_rand(size):
+    result = np.zeros((size, size), dtype=np.double)
+    rand = np.random.rand(size)
+    np.fill_diagonal(result, rand)
+    result = np.roll(result, 1, axis=1)
+    np.fill_diagonal(result, -1)
+    result = np.roll(result, -2, axis=1)
+    np.fill_diagonal(result, -1)
+    result = np.roll(result, 1, axis=1)
+    result[0, -1] = 0
+    result[-1, 0] = 0
+    return result
+
+
 def make_rhs(size, y):
     """ (...|b) """
     result = np.ndarray(size, dtype=np.double)
@@ -52,6 +54,14 @@ def make_rhs(size, y):
     result[1:-1] = y-2
     result[-1] = y-1
     return result
+
+
+def make_rhs_rand(size):
+    return np.random.rand(size)
+
+
+def make_rhs_zero(size):
+    return np.zeros(size)
 
 
 def main():
@@ -64,13 +74,26 @@ def main():
     parser.add_argument('-o', '--output', type=str)
     parser.add_argument('-d', '--dimension', type=int)
     parser.add_argument('-y', '--diag_val', type=float)
+    parser.add_argument('-r', '--random', type=bool)
+    parser.add_argument('-z', '--zero', type=bool)
 
     args = parser.parse_args()
 
-    if args.side == 'lhs':
-        mat = make_lhs(args.dimension, args.diag_val)
+    if (args.zero):
+        mat = make_rhs_zero(args.dimension)
+        np.save(args.output, mat)
+        return
+
+    if args.random:
+        if args.side == 'lhs':
+            mat = make_lhs_rand(args.dimension)
+        else:
+            mat = make_rhs_rand(args.dimension)
     else:
-        mat = make_rhs(args.dimension, args.diag_val)
+        if args.side == 'lhs':
+            mat = make_lhs(args.dimension, args.diag_val)
+        else:
+            mat = make_rhs(args.dimension, args.diag_val)
 
     np.save(args.output, mat)
 

@@ -1,68 +1,77 @@
 #include <cli/main.hpp>
 
-#include <csr/matrix.hpp>
-#include <filesystem>
-#include <fstream>
-#include <gcm/gcm.hpp>
+#include <chrono>
+#include <fmt/core.h>
 #include <iostream>
-#include <npy/npy.hpp>
+
+#include "loader.hpp"
+
+#include <cgm/runner.hpp>
+#include <thrust/host_vector.h>
 
 void check_path(const fs::path &path) {
-  if (not fs::exists(path) or path.extension() != ".npy") {
+  if (not fs::exists(path)) {
     LOG(error) << fmt::format("Invalid input path {}", path.string());
     exit(1);
   }
 }
 
-std::pair<std::vector<double>, std::pair<size_t, size_t>>
-load_matrix(const fs::path &path) {
-  std::vector<size_t> shape{};
-  bool fortran_order;
-  std::vector<double> data;
-  npy::LoadArrayFromNumpy(path.string(), shape, fortran_order, data);
+void cuda_info() {
+  int count;
+  cudaGetDeviceCount(&count);
 
-  if (shape.size() != 2) {
-    throw std::invalid_argument("Invalid lhs shape.");
+  if (count == 0) {
+    LOG(error) << "No cuda enabled devices found. Exiting.\n";
+    exit(1);
   }
 
-  return std::make_pair(std::move(data),
-                        std::make_pair(shape.at(0), shape.at(1)));
-}
+  LOG(info) << fmt::format("Found {} CUDA enabled device(s).\n", count);
 
-std::vector<double> load_vector(const fs::path &path) {
-  std::vector<size_t> shape{};
-  bool fortran_order;
-  std::vector<double> data;
-  npy::LoadArrayFromNumpy(path.string(), shape, fortran_order, data);
-
-  if (shape.size() != 1) {
-    throw std::invalid_argument("Invalid rhs shape.");
+  for (int i = 0; i < count; ++i) {
+    cudaDeviceProp prop;
+    cudaGetDeviceProperties(&prop, i);
+    LOG(info) << fmt::format("Device {}: {}\n", i, prop.name);
   }
-
-  return data;
 }
 
 int cli::main(const cli::program_args::arguments &args) {
   check_path(args.lhs_path);
   check_path(args.rhs_path);
 
-  auto [lhs_data, lhs_shape] = load_matrix(args.lhs_path);
-  auto rhs_data = load_vector(args.rhs_path);
+  cuda_info();
 
-  auto lhs = csr::from_dense(lhs_data, lhs_shape);
-  auto rhs = csr::from_dense(rhs_data);
+  auto lhs = load_matrix<double>(args.lhs_path);
+  auto rhs = load_vector<double>(args.rhs_path);
 
-  auto [scr_result, iterations] = gcm::solve(lhs, rhs, 1e-6, 10'000);
+  if (lhs.width() != lhs.height() || rhs.size() != lhs.width()) {
+    LOG(error) << "Invalid input size.";
+    exit(1);
+  }
 
-  auto result = scr_result.to_dense();
+  cgm::runner::runtime runtime;
 
-  std::vector<size_t> result_shape{result.size()};
+  std::shared_ptr<cgm::runner> runner = cgm::runner::runner::make(
+      args.cuda ? cgm::runner::runtime::GPU : cgm::runner::runtime::CPU);
+
+  auto start = std::chrono::high_resolution_clock::now();
+
+  auto [scr_result, iterations] = runner->solve(lhs, rhs, 1e-12, 10'000);
+
+  auto end = std::chrono::high_resolution_clock::now();
+
+  auto duration =
+      std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
+
+  std::vector<double> result(scr_result.begin(), scr_result.end());
+
+  std::vector<size_t> result_shape{scr_result.size()};
 
   npy::SaveArrayAsNumpy(args.output_path.string(), false, result_shape.size(),
                         result_shape.data(), result);
 
-  std::cout << fmt::format("{}\n", iterations);
-  std::cout << fmt::format("[{}]\n", fmt::join(result.begin(), result.end(), ","));
+  std::cout << fmt::format("[{}]\n",
+                           fmt::join(result.begin(), result.end(), ","));
+  std::cout << fmt::format("{}it {}ns\n", iterations, duration);
 
   return iterations > 10'000;
 }
