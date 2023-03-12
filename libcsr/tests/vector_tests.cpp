@@ -10,7 +10,7 @@ BOOST_AUTO_TEST_CASE(vector_norm) {
   auto device_ptr = algorithms::make_device_ptr();
   auto host_ptr = algorithms::make_host_ptr();
   std::vector<int> v1{1, 2, 3, 4};
-  const int expected = 30;
+  int expected = 30;
 
   BOOST_CHECK_EQUAL(algorithms::norm(v1, 2, device_ptr, host_ptr), expected);
 }
@@ -20,7 +20,7 @@ BOOST_AUTO_TEST_CASE(vector_dot) {
   auto host_ptr = algorithms::make_host_ptr();
   std::vector<int> v1{1, 2, 3, 4};
   std::vector<int> v2{5, 6, 7, 8};
-  const int expected = 70;
+  int expected = 70;
 
   BOOST_CHECK_EQUAL(algorithms::dot(v1, v2, device_ptr, host_ptr), expected);
 }

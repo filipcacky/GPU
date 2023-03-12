@@ -9,7 +9,7 @@
 
 BOOST_AUTO_TEST_CASE(vector_norm) {
   thrust::host_vector<int> v1 = std::vector{1, 2, 3, 4, 5};
-  const int expected = 55;
+  int expected = 55;
 
   BOOST_CHECK_EQUAL(indirection::norm(thrust::device_vector<int>(v1), 2),
                     expected);
@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE(vector_norm) {
 BOOST_AUTO_TEST_CASE(vector_dot) {
   thrust::host_vector<int> v1 = std::vector{1, 2, 3, 4};
   thrust::host_vector<int> v2 = std::vector{5, 6, 7, 8};
-  const int expected = 70;
+  int expected = 70;
 
   BOOST_CHECK_EQUAL(indirection::dot(thrust::device_vector<int>(v1),
                                      thrust::device_vector<int>(v2)),
@@ -27,7 +27,7 @@ BOOST_AUTO_TEST_CASE(vector_dot) {
 
 BOOST_AUTO_TEST_CASE(vector_scale) {
   thrust::host_vector<int> v = std::vector{1, 2, 3, 4};
-  const thrust::host_vector<int> expected = std::vector{2, 4, 6, 8};
+  thrust::host_vector<int> expected = std::vector{2, 4, 6, 8};
 
   thrust::device_vector<int> v_device = v;
 
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(vector_scale) {
 BOOST_AUTO_TEST_CASE(vector_add) {
   thrust::host_vector<int> v1 = std::vector{1, 2, 3, 4};
   thrust::host_vector<int> v2 = std::vector{1, 2, 3, 4};
-  const thrust::host_vector<int> expected = std::vector{2, 4, 6, 8};
+  thrust::host_vector<int> expected = std::vector{2, 4, 6, 8};
 
   thrust::device_vector<int> v1_device = v1;
   thrust::device_vector<int> v2_device = v2;
