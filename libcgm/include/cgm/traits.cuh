@@ -6,6 +6,9 @@
 #include <cgm/sanity.cuh>
 #include <csr/traits.hpp>
 
+#include <thrust/device_free.h>
+#include <thrust/device_new.h>
+#include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
 #include <thrust/execution_policy.h>
 #include <thrust/memory.h>
@@ -56,21 +59,28 @@ template <typename T> struct matrix_algorithms<T, thrust::device_vector> {
 template <typename T> struct vector_algorithms<T, thrust::device_vector> {
   using value_t = T;
   using vector_t = thrust::device_vector<value_t>;
+  using device_ptr_t = thrust::device_ptr<value_t>;
+  using host_ptr_t = std::unique_ptr<value_t>;
 
-  __host__ static value_t norm(const vector_t &vector, int l) {
+  static device_ptr_t make_device_ptr() {
+    return thrust::device_new<value_t>(1);
+  }
+
+  static host_ptr_t make_host_ptr() { return std::make_unique<value_t>(); }
+
+  static void delete_device_ptr(device_ptr_t&& ptr) { thrust::device_free(ptr); }
+
+  static void delete_host_ptr(host_ptr_t&&) {}
+
+  __host__ static value_t norm(const vector_t &vector, int l,
+                               device_ptr_t &device_ptr, host_ptr_t &host_ptr) {
     /* return thrust::transform_reduce(thrust::device, vector.begin(), */
     /*     vector.end(), cu::power_op<value_t>(l), */
     /*     0, thrust::plus<value_t>()); */
 
-    // TODO should check sizes here for OOM
-    auto [host_ptr, host_size] =
-        thrust::get_temporary_buffer<value_t>(thrust::device, 1);
     *host_ptr = 0;
-    auto [device_ptr, device_size] =
-        thrust::get_temporary_buffer<value_t>(thrust::device, 1);
-
-    cu::cuCopy(thrust::raw_pointer_cast(device_ptr),
-               thrust::raw_pointer_cast(host_ptr), 1, cudaMemcpyHostToDevice);
+    cu::cuCopy(thrust::raw_pointer_cast(device_ptr), host_ptr.get(), 1,
+               cudaMemcpyHostToDevice);
 
     dim3 grid_size =
         std::ceil(static_cast<double>(vector.size()) / cu::cuMaxThreads);
@@ -82,16 +92,14 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
     cuTry(cudaDeviceSynchronize());
 
-    cu::cuCopy(thrust::raw_pointer_cast(host_ptr),
-               thrust::raw_pointer_cast(device_ptr), 1, cudaMemcpyDeviceToHost);
+    cu::cuCopy(host_ptr.get(), thrust::raw_pointer_cast(device_ptr), 1,
+               cudaMemcpyDeviceToHost);
 
-    T result = *host_ptr;
-    thrust::return_temporary_buffer(thrust::host, host_ptr, host_size);
-    thrust::return_temporary_buffer(thrust::device, device_ptr, device_size);
-    return result;
+    return *host_ptr;
   }
 
-  __host__ static value_t dot(const vector_t &first, const vector_t &second) {
+  __host__ static value_t dot(const vector_t &first, const vector_t &second,
+                              device_ptr_t &device_ptr, host_ptr_t &host_ptr) {
     assert(first.size() == second.size());
     // TODO: fix
     /* vector_t temp(first.size()); */
@@ -101,15 +109,9 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     /*       thrust::raw_pointer_cast(second.data()))); */
     /* return thrust::reduce(thrust::device, temp.begin(), temp.end(), 0); */
 
-    // TODO should check sizes here for OOM
-    auto [host_ptr, host_size] =
-        thrust::get_temporary_buffer<value_t>(thrust::host, 1);
     *host_ptr = 0;
-    auto [device_ptr, device_size] =
-        thrust::get_temporary_buffer<value_t>(thrust::device, 1);
-
-    cu::cuCopy(thrust::raw_pointer_cast(device_ptr),
-               thrust::raw_pointer_cast(host_ptr), 1, cudaMemcpyHostToDevice);
+    cu::cuCopy(thrust::raw_pointer_cast(device_ptr), host_ptr.get(), 1,
+               cudaMemcpyHostToDevice);
 
     dim3 grid_size =
         std::ceil(static_cast<double>(first.size()) / cu::cuMaxThreads);
@@ -121,13 +123,10 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
         thrust::raw_pointer_cast(device_ptr));
     cuTry(cudaDeviceSynchronize());
 
-    cu::cuCopy(thrust::raw_pointer_cast(host_ptr),
-               thrust::raw_pointer_cast(device_ptr), 1, cudaMemcpyDeviceToHost);
+    cu::cuCopy(host_ptr.get(), thrust::raw_pointer_cast(device_ptr), 1,
+               cudaMemcpyDeviceToHost);
 
-    T result = *host_ptr;
-    thrust::return_temporary_buffer(thrust::host, host_ptr, host_size);
-    thrust::return_temporary_buffer(thrust::device, device_ptr, device_size);
-    return result;
+    return *host_ptr;
   }
 
   __host__ static void scale(vector_t &vector, value_t scalar) {

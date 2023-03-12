@@ -15,6 +15,9 @@ std::pair<Storage<T>, size_t> solve(const csr::matrix<T, Storage> &A,
   using vector_algorithms = csr::vector_algorithms<T, Storage>;
   using matrix_algorithms = csr::matrix_algorithms<T, Storage>;
 
+  auto device_ptr = vector_algorithms::make_device_ptr();
+  auto host_ptr = vector_algorithms::make_host_ptr();
+
   vector_t x(b.size());
 
   auto r = b;
@@ -22,7 +25,7 @@ std::pair<Storage<T>, size_t> solve(const csr::matrix<T, Storage> &A,
 
   auto p = r;
 
-  T rTr = vector_algorithms::dot(r, r);
+  T rTr = vector_algorithms::dot(r, r, device_ptr, host_ptr);
 
   size_t it;
 
@@ -31,17 +34,20 @@ std::pair<Storage<T>, size_t> solve(const csr::matrix<T, Storage> &A,
   for (it = 0; it < max_it && rTr > permissible_error; ++it) {
     matrix_algorithms::dot(A, p, Ap);
 
-    T a = rTr / vector_algorithms::dot(p, Ap);
+    T a = rTr / vector_algorithms::dot(p, Ap, device_ptr, host_ptr);
 
     vector_algorithms::add_scaled(x, a, p);
     vector_algorithms::sub_scaled(r, a, Ap);
 
-    T rTr2 = vector_algorithms::dot(r, r);
+    T rTr2 = vector_algorithms::dot(r, r, device_ptr, host_ptr);
     T scale = rTr2 / rTr;
     rTr = rTr2;
 
     vector_algorithms::scale_and_add(p, scale, r);
   }
+
+  vector_algorithms::delete_device_ptr(std::move(device_ptr));
+  vector_algorithms::delete_host_ptr(std::move(host_ptr));
 
   return std::make_pair(std::move(x), it);
 }

@@ -6,6 +6,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <memory>
 #include <numeric>
 
 namespace csr {
@@ -37,8 +38,23 @@ template <typename T, template <typename...> typename Storage>
 struct vector_algorithms {
   using value_t = T;
   using vector_t = Storage<value_t>;
+  using device_ptr_t = std::unique_ptr<value_t>;
+  using host_ptr_t = std::unique_ptr<value_t>;
 
-  static value_t norm(const vector_t &vector, size_t l) {
+  static device_ptr_t make_device_ptr() {
+    return std::make_unique<value_t>();
+  }
+
+  static host_ptr_t make_host_ptr() {
+    return std::make_unique<value_t>();
+  }
+
+  static void delete_device_ptr(device_ptr_t&&) { }
+
+  static void delete_host_ptr(host_ptr_t&&) {}
+
+  static value_t norm(const vector_t &vector, size_t l, device_ptr_t &,
+                      host_ptr_t &) {
     value_t result = 0;
 
 #pragma omp parallel for reduction(+ : result)
@@ -49,7 +65,8 @@ struct vector_algorithms {
     return result;
   }
 
-  static value_t dot(const vector_t &lhs, const vector_t &rhs) {
+  static value_t dot(const vector_t &lhs, const vector_t &rhs, device_ptr_t &,
+                     host_ptr_t &) {
     value_t result = 0;
 
 #pragma omp parallel for reduction(+ : result)
