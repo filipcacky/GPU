@@ -60,8 +60,18 @@ def make_rhs_rand(size):
     return np.random.rand(size)
 
 
-def make_rhs_zero(size):
-    return np.zeros(size)
+def make_lhs_rand(size):
+    result = np.zeros((size, size), dtype=np.double)
+    rand = np.random.rand(size)
+    np.fill_diagonal(result, rand)
+    result = np.roll(result, 1, axis=1)
+    np.fill_diagonal(result, -1)
+    result = np.roll(result, -2, axis=1)
+    np.fill_diagonal(result, -1)
+    result = np.roll(result, 1, axis=1)
+    result[0, -1] = 0
+    result[-1, 0] = 0
+    return result
 
 
 def main():
@@ -75,14 +85,8 @@ def main():
     parser.add_argument('-d', '--dimension', type=int)
     parser.add_argument('-y', '--diag_val', type=float)
     parser.add_argument('-r', '--random', type=bool)
-    parser.add_argument('-z', '--zero', type=bool)
 
     args = parser.parse_args()
-
-    if (args.zero):
-        mat = make_rhs_zero(args.dimension)
-        np.save(args.output, mat)
-        return
 
     if args.random:
         if args.side == 'lhs':
