@@ -1,12 +1,6 @@
-#include <boost/log/core.hpp>
-#include <boost/log/expressions.hpp>
-#include <boost/log/trivial.hpp>
-#include <boost/log/utility/setup/file.hpp>
 #include <cli/main.hpp>
 
 int main(int argc, const char *argv[]) {
-  boost::log::add_file_log("log.txt");
-
   cli::program_args::arguments args;
 
   try {

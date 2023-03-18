@@ -38,12 +38,9 @@ template <typename T> struct matrix_algorithms<T, thrust::device_vector> {
 
     result.resize(v.size());
 
-    /* dim3 grid_size = */
-    /*     std::ceil(static_cast<double>(mx.height()) / cu::cuMaxThreads); */
-    /* dim3 block_size = std::min(cu::cuMaxThreads, mx.height()); */
-
-    dim3 block_size = std::ceil(static_cast<double>(mx.height()) / cu::cuSM);
-    dim3 grid_size = std::ceil(static_cast<double>(mx.height()) / block_size.x);
+    dim3 grid_size =
+        std::ceil(static_cast<double>(mx.height()) / cu::cuMaxThreads);
+    dim3 block_size = std::min(cu::cuMaxThreads, mx.height());
 
     cu::csr_dot_vec<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(mx_data.data()), mx_data.size(),
@@ -51,8 +48,6 @@ template <typename T> struct matrix_algorithms<T, thrust::device_vector> {
         thrust::raw_pointer_cast(mx_row_ptr.data()), mx_row_ptr.size(),
         thrust::raw_pointer_cast(v.data()),
         thrust::raw_pointer_cast(result.data()), v.size());
-
-    cuTry(cudaDeviceSynchronize());
   }
 };
 
@@ -60,17 +55,23 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
   using value_t = T;
   using vector_t = thrust::device_vector<value_t>;
   using device_ptr_t = thrust::device_ptr<value_t>;
-  using host_ptr_t = std::unique_ptr<value_t>;
+  using host_ptr_t = value_t *;
 
   static device_ptr_t make_device_ptr() {
     return thrust::device_new<value_t>(1);
   }
 
-  static host_ptr_t make_host_ptr() { return std::make_unique<value_t>(); }
+  static host_ptr_t make_host_ptr() {
+    value_t *res;
+    cuTry(cudaHostAlloc(&res, sizeof(value_t), cudaHostAllocDefault));
+    return res;
+  }
 
-  static void delete_device_ptr(device_ptr_t&& ptr) { thrust::device_free(ptr); }
+  static void delete_device_ptr(device_ptr_t &&ptr) {
+    thrust::device_free(ptr);
+  }
 
-  static void delete_host_ptr(host_ptr_t&&) {}
+  static void delete_host_ptr(host_ptr_t &&ptr) { cudaFreeHost(ptr); }
 
   __host__ static value_t norm(const vector_t &vector, int l,
                                device_ptr_t &device_ptr, host_ptr_t &host_ptr) {
@@ -78,9 +79,7 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     /*     vector.end(), cu::power_op<value_t>(l), */
     /*     0, thrust::plus<value_t>()); */
 
-    *host_ptr = 0;
-    cu::cuCopy(thrust::raw_pointer_cast(device_ptr), host_ptr.get(), 1,
-               cudaMemcpyHostToDevice);
+    cudaMemset(thrust::raw_pointer_cast(device_ptr), 0, sizeof(value_t));
 
     dim3 grid_size =
         std::ceil(static_cast<double>(vector.size()) / cu::cuMaxThreads);
@@ -90,9 +89,7 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
         thrust::raw_pointer_cast(vector.data()), vector.size(), l,
         thrust::raw_pointer_cast(device_ptr));
 
-    cuTry(cudaDeviceSynchronize());
-
-    cu::cuCopy(host_ptr.get(), thrust::raw_pointer_cast(device_ptr), 1,
+    cu::cuCopy(host_ptr, thrust::raw_pointer_cast(device_ptr), 1,
                cudaMemcpyDeviceToHost);
 
     return *host_ptr;
@@ -109,9 +106,7 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     /*       thrust::raw_pointer_cast(second.data()))); */
     /* return thrust::reduce(thrust::device, temp.begin(), temp.end(), 0); */
 
-    *host_ptr = 0;
-    cu::cuCopy(thrust::raw_pointer_cast(device_ptr), host_ptr.get(), 1,
-               cudaMemcpyHostToDevice);
+    cudaMemset(thrust::raw_pointer_cast(device_ptr), 0, sizeof(value_t));
 
     dim3 grid_size =
         std::ceil(static_cast<double>(first.size()) / cu::cuMaxThreads);
@@ -121,9 +116,8 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
         thrust::raw_pointer_cast(first.data()),
         thrust::raw_pointer_cast(second.data()), first.size(),
         thrust::raw_pointer_cast(device_ptr));
-    cuTry(cudaDeviceSynchronize());
 
-    cu::cuCopy(host_ptr.get(), thrust::raw_pointer_cast(device_ptr), 1,
+    cu::cuCopy(host_ptr, thrust::raw_pointer_cast(device_ptr), 1,
                cudaMemcpyDeviceToHost);
 
     return *host_ptr;
@@ -139,7 +133,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
     cu::scale<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(vector.data()), vector.size(), scalar);
-    cuTry(cudaDeviceSynchronize());
   }
 
   __host__ static void scale_and_add(vector_t &first, value_t scalar,
@@ -153,7 +146,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     cu::scale_and_add<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(first.data()), scalar,
         thrust::raw_pointer_cast(second.data()), first.size());
-    cuTry(cudaDeviceSynchronize());
   }
 
   __host__ static void add(vector_t &first, const vector_t &second) {
@@ -170,7 +162,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     cu::add_vector_scaled<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(first.data()), value_t(1),
         thrust::raw_pointer_cast(second.data()), first.size());
-    cuTry(cudaDeviceSynchronize());
   }
 
   __host__ static void add_scaled(vector_t &first, value_t scalar,
@@ -189,8 +180,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     cu::add_vector_scaled<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(first.data()), scalar,
         thrust::raw_pointer_cast(second.data()), first.size());
-
-    cuTry(cudaDeviceSynchronize());
   }
 
   __host__ static void sub(vector_t &first, const vector_t &second) {
@@ -207,8 +196,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     cu::sub_vector_scaled<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(first.data()), value_t(1),
         thrust::raw_pointer_cast(second.data()), first.size());
-
-    cuTry(cudaDeviceSynchronize());
   }
 
   __host__ static void sub_scaled(vector_t &first, value_t scalar,
@@ -227,8 +214,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     cu::sub_vector_scaled<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(first.data()), scalar,
         thrust::raw_pointer_cast(second.data()), first.size());
-
-    cuTry(cudaDeviceSynchronize());
   }
 };
 

@@ -30,9 +30,11 @@ csr_dot_vec(const T *mx_data, size_t mx_data_size, const size_t *col_idx,
   const auto segment_begin = row_ptr[row];
   const auto segment_end = row_ptr[row + 1];
 
-  output[row] = 0;
+  T result = 0;
   for (size_t idx = segment_begin; idx < segment_end; ++idx)
-    output[row] += vector_data[col_idx[idx]] * mx_data[idx];
+    result += vector_data[col_idx[idx]] * mx_data[idx];
+
+  output[row] = result;
 }
 
 template <typename T> struct power_op : public thrust::unary_function<T, T> {
@@ -93,8 +95,8 @@ __global__ void scale_and_add(T *first, T scale, const T *second, size_t size) {
   if (threadId > size)
     return;
 
-  first[threadId] *= scale;
-  first[threadId] += second[threadId];
+  T result = scale * first[threadId] + second[threadId];
+  first[threadId] = result;
 }
 
 template <typename T>

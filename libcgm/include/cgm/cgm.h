@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cmath>
+#include <iostream>
 
 #include <csr/matrix.hpp>
 #include <csr/traits.hpp>

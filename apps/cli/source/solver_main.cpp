@@ -9,13 +9,6 @@
 #include <cgm/runner.hpp>
 #include <thrust/host_vector.h>
 
-void check_path(const fs::path &path) {
-  if (not fs::exists(path)) {
-    LOG(error) << fmt::format("Invalid input path {}", path.string());
-    exit(1);
-  }
-}
-
 void cuda_info() {
   int count;
   cudaGetDeviceCount(&count);
@@ -35,16 +28,23 @@ void cuda_info() {
 }
 
 int cli::main(const cli::program_args::arguments &args) {
-  check_path(args.lhs_path);
-  check_path(args.rhs_path);
-
-  cuda_info();
+  if (!fs::exists(args.lhs_path)) {
+    LOG(error) << fmt::format("Invalid input path {}", args.lhs_path.string());
+    exit(1);
+  }
 
   auto lhs = load_matrix<double>(args.lhs_path);
-  auto rhs = load_vector<double>(args.rhs_path);
+
+  std::vector<double> rhs;
+  if (!fs::exists(args.rhs_path)) {
+    rhs = std::vector<double>(lhs.width());
+  } else {
+    rhs = load_vector<double>(args.rhs_path);
+  }
 
   if (lhs.width() != lhs.height() || rhs.size() != lhs.width()) {
-    LOG(error) << "Invalid input size.";
+    LOG(error) << fmt::format("Invalid input size. lhs: {}x{} rhs: {}x{}",
+                              lhs.height(), lhs.width(), rhs.size(), 1);
     exit(1);
   }
 
@@ -55,7 +55,7 @@ int cli::main(const cli::program_args::arguments &args) {
 
   auto start = std::chrono::high_resolution_clock::now();
 
-  auto [scr_result, iterations] = runner->solve(lhs, rhs, 1e-12, 10'000);
+  auto [scr_result, iterations] = runner->solve(lhs, rhs, 1e-6, 10'000);
 
   auto end = std::chrono::high_resolution_clock::now();
 
@@ -66,12 +66,17 @@ int cli::main(const cli::program_args::arguments &args) {
 
   std::vector<size_t> result_shape{scr_result.size()};
 
-  npy::SaveArrayAsNumpy(args.output_path.string(), false, result_shape.size(),
-                        result_shape.data(), result);
+  if (!args.output_path.string().empty()) {
+    npy::SaveArrayAsNumpy(args.output_path.string(), false, result_shape.size(),
+                          result_shape.data(), result);
+  }
 
-  std::cout << fmt::format("[{}]\n",
-                           fmt::join(result.begin(), result.end(), ","));
-  std::cout << fmt::format("{}it {}ns\n", iterations, duration);
+  if (args.stdout) {
+    std::cout << fmt::format("[{}]\n",
+                             fmt::join(result.begin(), result.end(), ","));
+  }
 
-  return iterations > 10'000;
+  std::cout << fmt::format("{} {}\n", iterations, duration);
+
+  return 0;
 }

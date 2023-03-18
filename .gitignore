@@ -7,3 +7,4 @@ tags.lock
 log.txt
 .DS_Store
 data/*.txt
+data/*.mtx

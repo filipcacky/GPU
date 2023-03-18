@@ -14,8 +14,9 @@ bool parse(int argc, const char *argv[], arguments &args) {
     description.add_options()
       ("help,h", "Print options")
       ("lhs,l", po::value<std::filesystem::path>(&args.lhs_path)->required(), "LHS path")
-      ("rhs,r", po::value<std::filesystem::path>(&args.rhs_path)->required(), "RHS path")
-      ("output,o", po::value<std::filesystem::path>(&args.output_path)->required(), "Output path")
+      ("rhs,r", po::value<std::filesystem::path>(&args.rhs_path), "RHS path")
+      ("output,o", po::value<std::filesystem::path>(&args.output_path), "Output path")
+      ("stdout,s", po::value<bool>(&args.stdout)->default_value(false), "Print result to stdout")
       ("cuda,c", po::value<bool>(&args.cuda)->required(), "Run in cuda.");
     // clang-format on
 

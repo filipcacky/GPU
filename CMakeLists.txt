@@ -19,6 +19,6 @@ add_subdirectory(external/)
 add_subdirectory(apps/cli/)
 
 add_compile_options(
-  "$<$<CONFIG:RELEASE>:-W;-Wall;-O2;-g;-pedantic;-fsanitize=undefined;fsanitize=address>"
+  "$<$<CONFIG:RELEASE>:-W;-Wall;-O2;-g;-pedantic;-fsanitize=undefined;fsanitize=address;-ffast-math>"
   )
 add_compile_options("$<$<CONFIG:DEBUG>:-W;-Wall;-O0;-g;-pedantic>")

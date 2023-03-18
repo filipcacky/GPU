@@ -7,6 +7,7 @@
 #include <stdexcept>
 #include <utility>
 #include <vector>
+#include <fmt/format.h>
 
 #include <csr/matrix.hpp>
 #include <npy/npy.hpp>
@@ -22,9 +23,8 @@ csr::matrix<T, thrust::host_vector> load_npy_matrix(const fs::path &path) {
   std::vector<T> npy_data;
   npy::LoadArrayFromNumpy(path.string(), shape, npy_data);
 
-  if (shape.size() != 2 || shape[0] != shape[1]) {
+  if (shape.size() != 2 || shape[0] != shape[1])
     throw std::invalid_argument("Invalid lhs shape.");
-  }
 
   thrust::host_vector<T> data = std::move(npy_data);
   return csr::from_dense(data, std::make_pair(shape[0], shape[1]));
@@ -46,11 +46,14 @@ template <typename T>
 csr::matrix<T, thrust::host_vector> load_txt_matrix(const fs::path &path) {
   std::ifstream file(path);
 
+  std::string tmp;
+  while (file.peek() == '%')
+    std::getline(file, tmp);
+
   size_t width, height, non_zero;
 
-  if (!(file >> width >> height >> non_zero)) {
+  if (!(file >> width >> height >> non_zero))
     throw std::runtime_error("Invalid file.");
-  }
 
   thrust::host_vector<size_t> row_ptr_data;
   row_ptr_data.reserve(height);
@@ -63,7 +66,7 @@ csr::matrix<T, thrust::host_vector> load_txt_matrix(const fs::path &path) {
   for (size_t non_zero_idx = 0; non_zero_idx < non_zero; ++non_zero_idx) {
     size_t row, column;
     T value;
-    file >> row >> column >> value;
+    file >> column >> row >> value;
 
     if (last_row != row) {
       last_row = row;
@@ -94,7 +97,7 @@ template <typename T>
 csr::matrix<T, thrust::host_vector> load_matrix(const fs::path &path) {
   if (path.extension() == ".npy") {
     return load_npy_matrix<T>(path);
-  } else if (path.extension() == ".txt") {
+  } else if (path.extension() == ".mtx") {
     return load_txt_matrix<T>(path);
   }
   throw std::runtime_error("Unknown data format.");
@@ -103,7 +106,7 @@ csr::matrix<T, thrust::host_vector> load_matrix(const fs::path &path) {
 template <typename T> std::vector<T> load_vector(const fs::path &path) {
   if (path.extension() == ".npy") {
     return load_npy_vector<T>(path);
-  } else if (path.extension() == ".txt") {
+  } else if (path.extension() == ".mtx") {
     return load_txt_vector<T>(path);
   }
   throw std::runtime_error("Unknown data format.");

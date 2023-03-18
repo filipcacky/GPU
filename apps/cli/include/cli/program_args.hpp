@@ -9,6 +9,7 @@ struct arguments {
   fs::path lhs_path;
   fs::path output_path;
   bool cuda;
+  bool stdout;
 };
 
 bool parse(int argc, const char *argv[], arguments &args);
