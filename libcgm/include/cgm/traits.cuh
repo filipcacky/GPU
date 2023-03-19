@@ -38,9 +38,8 @@ template <typename T> struct matrix_algorithms<T, thrust::device_vector> {
 
     result.resize(v.size());
 
-    dim3 grid_size =
-        std::ceil(static_cast<double>(mx.height()) / cu::cuMaxThreads);
-    dim3 block_size = std::min(cu::cuMaxThreads, mx.height());
+    dim3 block_size = std::min(cu::cuWarpSize * mx.height(), cu::cuMaxThreads);
+    dim3 grid_size = std::ceil(static_cast<double>(mx.height()) / block_size.x);
 
     cu::csr_dot_vec<value_t><<<grid_size, block_size>>>(
         thrust::raw_pointer_cast(mx_data.data()), mx_data.size(),

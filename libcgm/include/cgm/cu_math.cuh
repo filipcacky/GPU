@@ -23,21 +23,27 @@ __global__ void
 csr_dot_vec(const T *__restrict__ mx_data, size_t mx_data_size,
             const size_t *__restrict__ col_idx, size_t col_idx_size,
             const size_t *__restrict__ row_ptr, size_t row_ptr_size,
-            const T *__restrict__ vector_data, T *__restrict__ output,
-            size_t vector_size) {
-  auto row = blockDim.x * blockIdx.x + threadIdx.x;
-  if (row > row_ptr_size - 1)
+            const T *__restrict__ vector_data, T *output, size_t vector_size) {
+  const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
+  const auto warpId = threadId / cuWarpSize;
+  const auto lane = threadId % cuWarpSize;
+  const auto rowCnt = row_ptr_size - 1;
+  unsigned mask = cuWarpActive(warpId < rowCnt);
+  if (warpId > rowCnt)
     return;
 
-  const auto segment_begin = row_ptr[row];
-  const auto segment_end = row_ptr[row + 1];
-
   T result = 0;
-#pragma unroll
-  for (size_t idx = segment_begin; idx < segment_end; ++idx)
-    result = __fma_rn(vector_data[col_idx[idx]], mx_data[idx], result);
 
-  output[row] = result;
+  const auto segment_begin = row_ptr[warpId];
+  const auto segment_end = row_ptr[warpId + 1];
+
+  for (size_t idx = segment_begin + lane; idx < segment_end; idx += cuWarpSize)
+    result += vector_data[col_idx[idx]] * mx_data[idx];
+
+  result = cuWarpReduce(result, mask);
+
+  if (lane == 0)
+    output[warpId] = result;
 }
 
 template <typename T> struct power_op : public thrust::unary_function<T, T> {
@@ -71,7 +77,8 @@ template <typename T> struct scale_op : public thrust::unary_function<T, void> {
   const T s_;
 };
 
-template <typename T> __global__ void scale(T *__restrict__ first, size_t size, T scale) {
+template <typename T>
+__global__ void scale(T *__restrict__ first, size_t size, T scale) {
   auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
   if (threadId > size)
     return;
@@ -94,8 +101,8 @@ struct add_vector_scaled_op : public thrust::unary_function<size_t, T> {
 };
 
 template <typename T>
-__global__ void scale_and_add(T *__restrict__ first, T scale, const T *__restrict__ second,
-                              size_t size) {
+__global__ void scale_and_add(T *__restrict__ first, T scale,
+                              const T *__restrict__ second, size_t size) {
   auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
   if (threadId > size)
     return;
