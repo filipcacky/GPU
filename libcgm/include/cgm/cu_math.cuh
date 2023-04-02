@@ -47,6 +47,29 @@ csr_dot_vec(const T *__restrict__ mx_data, size_t mx_data_size,
     output[warpId] = result;
 }
 
+template <typename T>
+__global__ void
+csr_dot_vec_old(const T *__restrict mx_data, size_t mx_data_size,
+                const size_t *__restrict col_idx, size_t col_idx_size,
+                const size_t *__restrict row_ptr, size_t row_ptr_size,
+                const T *__restrict vector_data, T *output,
+                size_t vector_size) {
+  auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
+  const auto rowCnt = row_ptr_size - 1;
+  if (threadId > rowCnt)
+    return;
+
+  const auto segment_begin = row_ptr[threadId];
+  const auto segment_end = row_ptr[threadId + 1];
+
+  T result = 0;
+#pragma unroll
+  for (size_t idx = segment_begin; idx < segment_end; ++idx)
+    result = __fma_rn(vector_data[col_idx[idx]], mx_data[idx], result);
+
+  output[threadId] = result;
+}
+
 template <typename T> struct power_op : public thrust::unary_function<T, T> {
   power_op(int l) : l_(l) {}
 
