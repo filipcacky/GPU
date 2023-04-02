@@ -6,8 +6,8 @@
 
 namespace cgm {
 
-using host_matrix = csr::matrix<double, thrust::host_vector>;
-using host_vector = thrust::host_vector<double>;
+using host_matrix = csr::matrix<float, thrust::host_vector>;
+using host_vector = thrust::host_vector<float>;
 
 class runner {
 public:
@@ -16,8 +16,8 @@ public:
   enum class runtime { CPU, GPU };
   static std::shared_ptr<runner> make(runtime);
 
-  virtual std::pair<thrust::host_vector<double>, size_t>
-  solve(const host_matrix &A, const host_vector &b, double permissible_error,
+  virtual std::pair<host_vector, size_t>
+  solve(const host_matrix &A, const host_vector &b, float permissible_error,
         size_t max_it) = 0;
 };
 

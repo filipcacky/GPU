@@ -33,13 +33,14 @@ int cli::main(const cli::program_args::arguments &args) {
     exit(1);
   }
 
-  auto lhs = load_matrix<double>(args.lhs_path);
+  auto lhs = load_matrix<float>(args.lhs_path);
 
-  std::vector<double> rhs;
+  std::vector<float> rhs;
   if (!fs::exists(args.rhs_path)) {
-    rhs = std::vector<double>(lhs.width());
+    rhs = std::vector<float>(lhs.width());
   } else {
-    rhs = load_vector<double>(args.rhs_path);
+    auto data = load_vector<double>(args.rhs_path);
+    rhs = std::vector<float>{data.begin(), data.end()};
   }
 
   if (lhs.width() != lhs.height() || rhs.size() != lhs.width()) {
@@ -62,7 +63,7 @@ int cli::main(const cli::program_args::arguments &args) {
   auto duration =
       std::chrono::duration_cast<std::chrono::nanoseconds>(end - start).count();
 
-  std::vector<double> result(scr_result.begin(), scr_result.end());
+  std::vector<float> result(scr_result.begin(), scr_result.end());
 
   std::vector<size_t> result_shape{scr_result.size()};
 

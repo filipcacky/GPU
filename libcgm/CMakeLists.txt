@@ -16,4 +16,9 @@ set_property(TARGET cgm PROPERTY CUDA_ARCHITECTURES native)
 
 target_link_libraries(cgm PUBLIC OpenMP::OpenMP_CXX)
 
+target_compile_options(cgm PRIVATE $<$<COMPILE_LANGUAGE:CUDA>:
+                       --generate-line-info
+                       --use_fast_math
+                       >)
+
 add_subdirectory(tests/)
