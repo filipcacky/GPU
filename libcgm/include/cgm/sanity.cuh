@@ -7,7 +7,7 @@ namespace cgm::cu {
 
 static constexpr size_t cuWarpSize = 32;
 static constexpr size_t cuSM = 48; // read from cuda info
-static constexpr size_t cuMaxThreads = 1024;
+static constexpr size_t cuMaxThreads = 512;
 static constexpr unsigned cuFullMask = 0xffffffff;
 
 __device__ __host__ void cuTry(const char *file, size_t line, const char *fn,

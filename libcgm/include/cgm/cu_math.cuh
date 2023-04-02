@@ -39,7 +39,7 @@ csr_dot_vec(const T *__restrict__ mx_data, size_t mx_data_size,
 
 #pragma unroll
   for (size_t idx = segment_begin + lane; idx < segment_end; idx += cuWarpSize)
-    result = __fma_rn(vector_data[col_idx[idx]], mx_data[idx], result);
+    result += vector_data[col_idx[idx]] * mx_data[idx];
 
   result = cuWarpReduce(result, mask);
 
@@ -64,7 +64,7 @@ __global__ void vec_norm(const T *__restrict__ vector, size_t size, int l,
   if (threadId > size)
     return;
 
-  T local_res = std::pow(vector[threadId], l);
+  T local_res = pow(vector[threadId], l);
   local_res = cuWarpReduce(local_res, mask);
 
   if (lane == 0)
@@ -109,8 +109,7 @@ __global__ void scale_and_add(T *__restrict__ first, T scale,
   if (threadId > size)
     return;
 
-  T result = __fma_rn(scale, first[threadId], second[threadId]);
-  first[threadId] = result;
+  first[threadId] = scale * first[threadId] + second[threadId];
 }
 
 template <typename T>
@@ -120,7 +119,7 @@ __global__ void add_vector_scaled(T *__restrict__ first, T scale,
   if (threadId > size)
     return;
 
-  first[threadId] = __fma_rn(scale, second[threadId], first[threadId]);
+  first[threadId] = scale * second[threadId] + first[threadId];
 }
 
 template <typename T>
@@ -144,7 +143,7 @@ __global__ void sub_vector_scaled(T *__restrict__ first, T scale,
   if (threadId > size)
     return;
 
-  first[threadId] = __fma_rn(-scale, second[threadId], first[threadId]);
+  first[threadId] = -scale * second[threadId] + first[threadId];
 }
 
 template <typename T>
