@@ -105,10 +105,10 @@ template <typename T> struct scale_op : public thrust::unary_function<T, void> {
 template <typename T>
 __global__ void scale(T *__restrict__ first, size_t size, T scale) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId >= size)
-    return;
+  const auto threadCnt = blockDim.x * gridDim.x;
 
-  first[threadId] *= scale;
+  for (size_t idx = threadId; idx < size; idx += threadCnt)
+    first[idx] *= scale;
 }
 
 template <typename T>
@@ -129,20 +129,20 @@ template <typename T>
 __global__ void scale_and_add(T *__restrict__ first, T scale,
                               const T *__restrict__ second, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId >= size)
-    return;
+  const auto threadCnt = blockDim.x * gridDim.x;
 
-  first[threadId] = scale * first[threadId] + second[threadId];
+  for (size_t idx = threadId; idx < size; idx += threadCnt)
+    first[idx] = scale * first[idx] + second[idx];
 }
 
 template <typename T>
 __global__ void add_vector_scaled(T *__restrict__ first, T scale,
                                   const T *__restrict__ second, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId >= size)
-    return;
+  const auto threadCnt = blockDim.x * gridDim.x;
 
-  first[threadId] = scale * second[threadId] + first[threadId];
+  for (size_t idx = threadId; idx < size; idx += threadCnt)
+    first[idx] = scale * second[idx] + first[idx];
 }
 
 template <typename T>
@@ -163,10 +163,10 @@ template <typename T>
 __global__ void sub_vector_scaled(T *__restrict__ first, T scale,
                                   const T *__restrict__ second, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId >= size)
-    return;
+  const auto threadCnt = blockDim.x * gridDim.x;
 
-  first[threadId] = -scale * second[threadId] + first[threadId];
+  for (size_t idx = threadId; idx < size; idx += threadCnt)
+    first[idx] = -scale * second[idx] + first[idx];
 }
 
 template <typename T>
@@ -186,10 +186,10 @@ template <typename T>
 __global__ void multiply(const T *__restrict__ first,
                          const T *__restrict__ second, T *out, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId >= size)
-    return;
+  const auto threadCnt = blockDim.x * gridDim.x;
 
-  out[threadId] = first[threadId] * second[threadId];
+  for (size_t idx = threadId; idx < size; idx += threadCnt)
+    out[idx] = first[idx] * second[idx];
 }
 
 template <typename T>
