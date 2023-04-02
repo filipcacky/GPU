@@ -29,7 +29,7 @@ csr_dot_vec(const T *__restrict__ mx_data, size_t mx_data_size,
   const auto lane = threadId % cuWarpSize;
   const auto rowCnt = row_ptr_size - 1;
   unsigned mask = cuWarpActive(warpId < rowCnt);
-  if (warpId > rowCnt)
+  if (warpId >= rowCnt)
     return;
 
   T result = 0;
@@ -61,7 +61,7 @@ __global__ void vec_norm(const T *__restrict__ vector, size_t size, int l,
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
   const unsigned mask = cuWarpActive(threadId < size);
   const auto lane = threadId % cuWarpSize;
-  if (threadId > size)
+  if (threadId >= size)
     return;
 
   T local_res = pow(vector[threadId], l);
@@ -82,7 +82,7 @@ template <typename T> struct scale_op : public thrust::unary_function<T, void> {
 template <typename T>
 __global__ void scale(T *__restrict__ first, size_t size, T scale) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId > size)
+  if (threadId >= size)
     return;
 
   first[threadId] *= scale;
@@ -106,7 +106,7 @@ template <typename T>
 __global__ void scale_and_add(T *__restrict__ first, T scale,
                               const T *__restrict__ second, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId > size)
+  if (threadId >= size)
     return;
 
   first[threadId] = scale * first[threadId] + second[threadId];
@@ -116,7 +116,7 @@ template <typename T>
 __global__ void add_vector_scaled(T *__restrict__ first, T scale,
                                   const T *__restrict__ second, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId > size)
+  if (threadId >= size)
     return;
 
   first[threadId] = scale * second[threadId] + first[threadId];
@@ -140,7 +140,7 @@ template <typename T>
 __global__ void sub_vector_scaled(T *__restrict__ first, T scale,
                                   const T *__restrict__ second, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId > size)
+  if (threadId >= size)
     return;
 
   first[threadId] = -scale * second[threadId] + first[threadId];
@@ -163,7 +163,7 @@ template <typename T>
 __global__ void multiply(const T *__restrict__ first,
                          const T *__restrict__ second, T *out, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  if (threadId > size)
+  if (threadId >= size)
     return;
 
   out[threadId] = first[threadId] * second[threadId];
@@ -176,7 +176,7 @@ __global__ void vec_dot_vec(const T *__restrict__ first,
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
   const unsigned mask = cuWarpActive(threadId < size);
   const auto lane = threadId % cuWarpSize;
-  if (threadId > size)
+  if (threadId >= size)
     return;
 
   T local_res = first[threadId] * second[threadId];
