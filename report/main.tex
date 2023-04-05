@@ -1,0 +1,72 @@
+\documentclass{article}
+\usepackage[utf8]{inputenc}
+\usepackage{graphicx}
+\usepackage{float}
+\usepackage{hyperref}
+\usepackage{amssymb}
+\usepackage{listings}
+\usepackage[parfill]{parskip}
+\usepackage[rmargin=0.6in,lmargin=0.6in,tmargin=0.7in, bmargin=0.7in]{geometry}
+
+\title{CUDA accelerated CSR Matrix Conjugate Gradient Method}
+\author{Filip Čacký}
+\date{2023\\ April}
+
+\begin{document}
+
+\maketitle
+
+\section{Abstract}
+The focus of this term paper is the implementation of a CUDA accelerated CSR sparse matrix
+conjugate gradient method for solving systems of linear equations.
+
+The implementation details of a CPU version are discussed first,
+followed by implementations of CUDA kernels for the required mathematical operations
+accompanied by profiler outputs.
+Finally both versions are benchmarked on several different equations and compared.
+
+The CUDA accelerated version achieved a speedup ranging from TODO to TODO
+compared to the CPU version.
+
+\section{Problem definition}
+The conjugate gradient method is an iterative method for solving systems of linear equations $Ax = b$
+where $A$ is an $n\times n$ symmetric, positively-definite real matrix \cite{wiki_cgm}.
+
+A pseudo-code implementation of the algorithm is depicted in Figure \ref{code:cgm_pseudo}.
+
+\begin{figure}[H]
+\begin{lstlisting}[language=Python,mathescape=true]
+
+def cgm(A, b, max_iterations, permissible_error):
+  $k := 0$
+  $r_k := b - A * x_k$
+  $p_k := r_k$
+
+  while $k$ <= max_it and $|r_k|_2$ < permissible_error: 
+    $a_k := \frac{r_k^Tr_k}{p_k^TAp_k}$
+    $x_{k+1} := x_k + a_kp_k$
+    $r_{k+1} := r_k + a_kAp_k$
+    $b_k := \frac{r_{k+1}^Tr_{k+1}}{r_k^Tr_k}$
+    $p_{k+1} := r_{k+1} + b_kp_k$
+
+    $k := k + 1$
+
+  return x_k
+
+\end{lstlisting}
+\caption{Conjugate gradient method pseudo-code \cite{wiki_cgm}}
+\label{code:cgm_pseudo}
+\end{figure}
+
+\section{Compressed Sparse Row matrix format}
+
+\section{Sequential algorithm}
+
+\section{Benchmarking results}
+
+\section{Conclusion}
+
+\bibliography{citations} 
+\bibliographystyle{ieeetr}
+
+\end{document}
