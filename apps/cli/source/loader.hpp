@@ -78,8 +78,10 @@ csr::matrix<T, thrust::host_vector> load_txt_matrix(const fs::path &path) {
 
   row_ptr_data.push_back(value_data.size());
 
+  size_t mean_nonzero = value_data.size() / height;
+
   return csr::matrix(std::move(value_data), std::move(col_idx_data),
-                     std::move(row_ptr_data), width);
+                     std::move(row_ptr_data), width, mean_nonzero);
 }
 
 template <typename T> std::vector<T> load_txt_vector(const fs::path &path) {

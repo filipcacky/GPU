@@ -22,9 +22,10 @@ public:
   using algorithms = matrix_algorithms<value_t, Storage>;
 
   matrix(value_storage_t &&data, index_storage_t &&col_idx,
-         index_storage_t &&row_ptr, size_t width_)
+         index_storage_t &&row_ptr, size_t width_, size_t mean_nonzero)
       : data_(std::move(data)), col_idx_(std::move(col_idx)),
-        row_ptr_(std::move(row_ptr)), width_(width_) {}
+        row_ptr_(std::move(row_ptr)), width_(width_),
+        mean_nonzero_(mean_nonzero) {}
 
   const value_storage_t &data() const { return data_; }
   const index_storage_t &col_idx() const { return col_idx_; }
@@ -32,6 +33,7 @@ public:
 
   size_t height() const { return row_ptr_.size() - 1; }
   size_t width() const { return width_; }
+  size_t mean_nonzero() const { return mean_nonzero_; }
 
   std::pair<size_t, size_t> shape() const {
     return std::make_pair(height(), width());
@@ -79,7 +81,8 @@ public:
     Storage<size_t> col_idx = col_idx_;
     Storage<size_t> row_ptr = row_ptr_;
     return matrix<value_t, Storage>(std::move(data), std::move(col_idx),
-                                    std::move(row_ptr), width());
+                                    std::move(row_ptr), width(),
+                                    mean_nonzero());
   }
 
   template <template <typename...> typename S>
@@ -88,7 +91,7 @@ public:
     S<size_t> col_idx = col_idx_;
     S<size_t> row_ptr = row_ptr_;
     return matrix<value_t, S>(std::move(data), std::move(col_idx),
-                              std::move(row_ptr), width());
+                              std::move(row_ptr), width(), mean_nonzero());
   }
 
   value_storage_t dot(const vector_t &vector) const {
@@ -102,6 +105,7 @@ private:
   index_storage_t col_idx_;
   index_storage_t row_ptr_;
   size_t width_;
+  size_t mean_nonzero_;
 };
 
 template <template <typename...> typename Storage, typename... Ts>
@@ -124,7 +128,10 @@ static auto from_dense(const Storage<Ts...> &dense,
     }
   }
 
-  return matrix(std::move(data), std::move(col_idx), std::move(row_ptr), width);
+  size_t mean_nonzero = data.size() / height;
+
+  return matrix(std::move(data), std::move(col_idx), std::move(row_ptr), width,
+                mean_nonzero);
 }
 
 } // namespace csr

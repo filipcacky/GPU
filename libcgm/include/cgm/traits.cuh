@@ -31,20 +31,28 @@ template <typename T> struct matrix_algorithms<T, thrust::device_vector> {
 
     result.resize(v.size());
 
-    dim3 block_size = std::min(cu::cuWarpSize * mx.height(), cu::cuMaxThreads);
-    dim3 grid_size = std::ceil(cu::cuWarpSize *
-                               static_cast<double>(mx.height()) / block_size.x);
-
-    /* dim3 block_size = std::min(mx.height(), cu::cuMaxThreads); */
-    /* dim3 grid_size = std::ceil(static_cast<double>(mx.height()) /
-     * block_size.x); */
-
-    cu::csr_dot_vec<value_t><<<grid_size, block_size>>>(
-        thrust::raw_pointer_cast(mx_data.data()), mx_data.size(),
-        thrust::raw_pointer_cast(mx_col_idx.data()), mx_col_idx.size(),
-        thrust::raw_pointer_cast(mx_row_ptr.data()), mx_row_ptr.size(),
-        thrust::raw_pointer_cast(v.data()),
-        thrust::raw_pointer_cast(result.data()), v.size());
+    if (mx.mean_nonzero() <= cu::cuWarpSize / 4) {
+      dim3 block_size = std::min(mx.height(), cu::cuMaxThreads);
+      dim3 grid_size =
+          std::ceil(static_cast<double>(mx.height()) / block_size.x);
+      cu::csr_dot_vec_1<value_t><<<grid_size, block_size>>>(
+          thrust::raw_pointer_cast(mx_data.data()),
+          thrust::raw_pointer_cast(mx_col_idx.data()),
+          thrust::raw_pointer_cast(mx_row_ptr.data()), mx_row_ptr.size(),
+          thrust::raw_pointer_cast(v.data()),
+          thrust::raw_pointer_cast(result.data()));
+    } else {
+      dim3 block_size =
+          std::min(cu::cuWarpSize * mx.height(), cu::cuMaxThreads);
+      dim3 grid_size = std::ceil(
+          cu::cuWarpSize * static_cast<double>(mx.height()) / block_size.x);
+      cu::csr_dot_vec_32<value_t><<<grid_size, block_size>>>(
+          thrust::raw_pointer_cast(mx_data.data()),
+          thrust::raw_pointer_cast(mx_col_idx.data()),
+          thrust::raw_pointer_cast(mx_row_ptr.data()), mx_row_ptr.size(),
+          thrust::raw_pointer_cast(v.data()),
+          thrust::raw_pointer_cast(result.data()));
+    }
   }
 };
 
@@ -115,7 +123,7 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
     /* dim3 grid_size = */
     /*     std::ceil(static_cast<double>(vector.size()) / block_size.x); */
 
-    dim3 grid_size = 16*48;
+    dim3 grid_size = 16 * 48;
     dim3 block_size = 256;
 
     cu::scale<value_t><<<grid_size, block_size>>>(
@@ -128,9 +136,10 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
-    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x * cu::cuWarpSize)); */
+    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x *
+     * cu::cuWarpSize)); */
 
-    dim3 grid_size = 16*48;
+    dim3 grid_size = 16 * 48;
     dim3 block_size = 256;
 
     cu::scale_and_add<value_t><<<grid_size, block_size>>>(
@@ -143,9 +152,10 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
-    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x * cu::cuWarpSize)); */
+    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x *
+     * cu::cuWarpSize)); */
 
-    dim3 grid_size = 16*48;
+    dim3 grid_size = 16 * 48;
     dim3 block_size = 256;
 
     cu::add_vector_scaled<value_t><<<grid_size, block_size>>>(
@@ -159,9 +169,10 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
-    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x * cu::cuWarpSize)); */
+    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x *
+     * cu::cuWarpSize)); */
 
-    dim3 grid_size = 16*48;
+    dim3 grid_size = 16 * 48;
     dim3 block_size = 256;
 
     cu::add_vector_scaled<value_t><<<grid_size, block_size>>>(
@@ -174,9 +185,10 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
-    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x * cu::cuWarpSize)); */
+    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x *
+     * cu::cuWarpSize)); */
 
-    dim3 grid_size = 16*48;
+    dim3 grid_size = 16 * 48;
     dim3 block_size = 256;
 
     cu::sub_vector_scaled<value_t><<<grid_size, block_size>>>(
@@ -190,9 +202,10 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
-    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x * cu::cuWarpSize)); */
+    /*     std::ceil(static_cast<double>(first.size()) / (block_size.x *
+     * cu::cuWarpSize)); */
 
-    dim3 grid_size = 16*48;
+    dim3 grid_size = 16 * 48;
     dim3 block_size = 256;
 
     cu::sub_vector_scaled<value_t><<<grid_size, block_size>>>(

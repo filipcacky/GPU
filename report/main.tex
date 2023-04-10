@@ -29,7 +29,7 @@ The CUDA accelerated version achieved a speedup ranging from TODO to TODO
 compared to the CPU version.
 
 \section{Problem definition}
-The conjugate gradient method is an iterative method for solving systems of linear equations $Ax = b$
+The conjugate gradient method (CGM) is an iterative method for solving systems of linear equations $Ax = b$
 where $A$ is an $n\times n$ symmetric, positively-definite real matrix \cite{wiki_cgm}.
 
 A pseudo-code implementation of the algorithm is depicted in Figure \ref{code:cgm_pseudo}.
@@ -51,18 +51,61 @@ def cgm(A, b, max_iterations, permissible_error):
 
     $k := k + 1$
 
-  return x_k
+  return $x_k$
 
 \end{lstlisting}
 \caption{Conjugate gradient method pseudo-code \cite{wiki_cgm}}
 \label{code:cgm_pseudo}
 \end{figure}
 
-\section{Compressed Sparse Row matrix format}
+The following operations have to be implemented.
 
-\section{Sequential algorithm}
+\begin{itemize}
+  \item $A \cdot v$
+  \item $v \cdot u$
+  \item $v + \alpha v$
+  \item $v - \alpha v$
+\end{itemize}
+
+Where $A$ is a matrix, $v$ and $u$ are vectors of valid length and $\alpha$ is a scalar.
+
+\section{Sparse matrices}
+A sparse matrix is a matrix in which most elements are zero.
+The number of zero valued elements in the matrix divided by the total number of elements
+is referred to as sparsity of the matrix.
+Similarly, the number of non-zero valued elements in the matrix divided by the total number
+of elements is referred to as density of the matrix \cite{wiki_csr}.
+
+This term paper considers only Compressed Sparse Row (CSR) matrices.
+A CSR matrix is represented by three vectors of values, instead of
+a row or column-major value storage format used in dense matrices.
+
+The focus of this term paper is solely on implementing CGM for Compressed Sparse Row (CSR) matrices.
+In a CSR matrix, the non-zero elements of the matrix are stored along with their row and column indices.
+
+The CSR matrix format is characterized by three arrays:
+\begin{itemize}
+  \item non-zero values
+  \item column indices corresponding to each value
+  \item value vector indices corresponding to the first non-zero value in each row
+\end{itemize}
+
+This storage approach has several advantages such as a lower storage or memory footprint
+and faster matrix-vector dot product operations for matrices with a large sparsity.
+
+\section{Implementation details}
+The CPU version was implemented with the use of the OpenMP parallelization toolkit,
+utilizing parallel for and parallel reductions for all required operations.
+
+The CUDA accelerated version was first implemented with the aid of the
+NVIDIA Thrust parallel algorithms library \footnote{https://github.com/NVIDIA/thrust}.
+All vector operations were implemented with the functional Thrust interface with custom
+functors.
+This was quickly scrapped due to suboptimal performance. This is likely caused
+by
 
 \section{Benchmarking results}
+
 
 \section{Conclusion}
 

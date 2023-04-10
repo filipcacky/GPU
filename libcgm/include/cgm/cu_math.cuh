@@ -18,11 +18,11 @@ __device__ __inline__ T cuWarpReduce(T value, unsigned mask) {
 }
 
 template <typename T>
-__global__ void
-csr_dot_vec(const T *__restrict__ mx_data, size_t mx_data_size,
-            const size_t *__restrict__ col_idx, size_t col_idx_size,
-            const size_t *__restrict__ row_ptr, size_t row_ptr_size,
-            const T *__restrict__ vector_data, T *output, size_t vector_size) {
+__global__ void csr_dot_vec_32(const T *__restrict__ mx_data,
+                               const size_t *__restrict__ col_idx,
+                               const size_t *__restrict__ row_ptr,
+                               size_t row_ptr_size,
+                               const T *__restrict__ vector_data, T *output) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
   const auto warpId = threadId / cuWarpSize;
   const auto lane = threadId % cuWarpSize;
@@ -47,14 +47,12 @@ csr_dot_vec(const T *__restrict__ mx_data, size_t mx_data_size,
 
 template <typename T>
 __global__ void
-csr_dot_vec_old(const T *__restrict mx_data, size_t mx_data_size,
-                const size_t *__restrict col_idx, size_t col_idx_size,
-                const size_t *__restrict row_ptr, size_t row_ptr_size,
-                const T *__restrict vector_data, T *output,
-                size_t vector_size) {
-  auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
+csr_dot_vec_1(const T *__restrict mx_data, const size_t *__restrict col_idx,
+              const size_t *__restrict row_ptr, size_t row_ptr_size,
+              const T *__restrict vector_data, T *output) {
+  const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
   const auto rowCnt = row_ptr_size - 1;
-  if (threadId > rowCnt)
+  if (threadId >= rowCnt)
     return;
 
   const auto segment_begin = row_ptr[threadId];
@@ -63,7 +61,7 @@ csr_dot_vec_old(const T *__restrict mx_data, size_t mx_data_size,
   T result = 0;
 
   for (size_t idx = segment_begin; idx < segment_end; ++idx)
-    result = __fma_rn(vector_data[col_idx[idx]], mx_data[idx], result);
+    result += vector_data[col_idx[idx]] * mx_data[idx];
 
   output[threadId] = result;
 }

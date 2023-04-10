@@ -37,7 +37,7 @@ int cli::main(const cli::program_args::arguments &args) {
 
   std::vector<float> rhs;
   if (!fs::exists(args.rhs_path)) {
-    rhs = std::vector<float>(lhs.width());
+    rhs = std::vector<float>(lhs.width(), 1);
   } else {
     auto data = load_vector<double>(args.rhs_path);
     rhs = std::vector<float>{data.begin(), data.end()};
@@ -77,7 +77,7 @@ int cli::main(const cli::program_args::arguments &args) {
                              fmt::join(result.begin(), result.end(), ","));
   }
 
-  std::cout << fmt::format("{} {}\n", iterations, duration);
+  std::cout << fmt::format("{} {} {}\n", iterations, duration, lhs.mean_nonzero());
 
   return 0;
 }
