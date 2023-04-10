@@ -1,7 +1,6 @@
 #pragma once
 
 #include <cgm/sanity.cuh>
-#include <thrust/functional.h>
 
 namespace cgm::cu {
 
@@ -37,7 +36,6 @@ csr_dot_vec(const T *__restrict__ mx_data, size_t mx_data_size,
   const auto segment_begin = row_ptr[warpId];
   const auto segment_end = row_ptr[warpId + 1];
 
-#pragma unroll
   for (size_t idx = segment_begin + lane; idx < segment_end; idx += cuWarpSize)
     result += vector_data[col_idx[idx]] * mx_data[idx];
 
@@ -63,20 +61,12 @@ csr_dot_vec_old(const T *__restrict mx_data, size_t mx_data_size,
   const auto segment_end = row_ptr[threadId + 1];
 
   T result = 0;
-#pragma unroll
+
   for (size_t idx = segment_begin; idx < segment_end; ++idx)
     result = __fma_rn(vector_data[col_idx[idx]], mx_data[idx], result);
 
   output[threadId] = result;
 }
-
-template <typename T> struct power_op : public thrust::unary_function<T, T> {
-  power_op(int l) : l_(l) {}
-
-  __host__ __device__ T operator()(T x) const { return pow(x, l_); }
-
-  const int l_;
-};
 
 template <typename T>
 __global__ void vec_norm(const T *__restrict__ vector, size_t size, int l,

@@ -10,13 +10,6 @@
 #include <thrust/device_new.h>
 #include <thrust/device_ptr.h>
 #include <thrust/device_vector.h>
-#include <thrust/execution_policy.h>
-#include <thrust/memory.h>
-
-/* #include <thrust/for_each.h> */
-/* #include <thrust/reduce.h> */
-/* #include <thrust/tabulate.h> */
-/* #include <thrust/transform_reduce.h> */
 
 namespace csr {
 
@@ -79,10 +72,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
   __host__ static value_t norm(const vector_t &vector, int l,
                                device_ptr_t &device_ptr, host_ptr_t &host_ptr) {
-    /* return thrust::transform_reduce(thrust::device, vector.begin(), */
-    /*     vector.end(), cu::power_op<value_t>(l), */
-    /*     0, thrust::plus<value_t>()); */
-
     cudaMemset(thrust::raw_pointer_cast(device_ptr), 0, sizeof(value_t));
 
     dim3 block_size = std::min(cu::cuMaxThreads, vector.size());
@@ -102,13 +91,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
   __host__ static value_t dot(const vector_t &first, const vector_t &second,
                               device_ptr_t &device_ptr, host_ptr_t &host_ptr) {
     assert(first.size() == second.size());
-    // TODO: fix
-    /* vector_t temp(first.size()); */
-    /* thrust::tabulate( */
-    /*     thrust::device, temp.begin(), temp.end(), */
-    /*     cu::mul_vector_op(thrust::raw_pointer_cast(first.data()), */
-    /*       thrust::raw_pointer_cast(second.data()))); */
-    /* return thrust::reduce(thrust::device, temp.begin(), temp.end(), 0); */
 
     cudaMemset(thrust::raw_pointer_cast(device_ptr), 0, sizeof(value_t));
 
@@ -128,8 +110,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
   }
 
   __host__ static void scale(vector_t &vector, value_t scalar) {
-    /* thrust::for_each(thrust::device, vector.begin(), vector.end(), */
-    /*     cu::scale_op(scalar)); */
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, vector.size()); */
     /* dim3 grid_size = */
@@ -160,10 +140,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
   __host__ static void add(vector_t &first, const vector_t &second) {
     assert(first.size() == second.size());
-    /* thrust::tabulate(first.begin(), first.end(), */
-    /*     cu::add_vector_scaled_op( */
-    /*       thrust::raw_pointer_cast(first.data()), value_t(1), */
-    /*       thrust::raw_pointer_cast(second.data()))); */
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
@@ -180,11 +156,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
   __host__ static void add_scaled(vector_t &first, value_t scalar,
                                   const vector_t &second) {
     assert(first.size() == second.size());
-    /* auto op = */
-    /*   cu::add_vector_scaled_op(thrust::raw_pointer_cast(first.data()),
-     * scalar, */
-    /*       thrust::raw_pointer_cast(second.data())); */
-    /* thrust::tabulate(first.begin(), first.end(), op); */
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
@@ -200,10 +171,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
 
   __host__ static void sub(vector_t &first, const vector_t &second) {
     assert(first.size() == second.size());
-    /* thrust::tabulate(first.begin(), first.end(), */
-    /*     cu::sub_vector_scaled_op( */
-    /*       thrust::raw_pointer_cast(first.data()), value_t(1), */
-    /*       thrust::raw_pointer_cast(second.data()))); */
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
@@ -220,11 +187,6 @@ template <typename T> struct vector_algorithms<T, thrust::device_vector> {
   __host__ static void sub_scaled(vector_t &first, value_t scalar,
                                   const vector_t &second) {
     assert(first.size() == second.size());
-    /* auto op = */
-    /*   cu::sub_vector_scaled_op(thrust::raw_pointer_cast(first.data()),
-     * scalar, */
-    /*       thrust::raw_pointer_cast(second.data())); */
-    /* thrust::tabulate(first.begin(), first.end(), op); */
 
     /* dim3 block_size = std::min(cu::cuMaxThreads, first.size()); */
     /* dim3 grid_size = */
