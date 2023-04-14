@@ -21,49 +21,49 @@ template <typename T>
 __global__ void csr_dot_vec_32(const T *__restrict__ mx_data,
                                const size_t *__restrict__ col_idx,
                                const size_t *__restrict__ row_ptr,
-                               size_t row_ptr_size,
-                               const T *__restrict__ vector_data, T *output) {
+                               size_t rowCnt, const T *__restrict__ vector_data,
+                               T *output) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
   const auto warpId = threadId / cuWarpSize;
+  const auto warpCount = (blockDim.x * gridDim.x) / cuWarpSize;
   const auto lane = threadId % cuWarpSize;
-  const auto rowCnt = row_ptr_size - 1;
-  unsigned mask = cuWarpActive(warpId < rowCnt);
-  if (warpId >= rowCnt)
-    return;
 
-  T result = 0;
+  for (size_t row = warpId; row < rowCnt; row += warpCount) {
+    T result = 0;
 
-  const auto segment_begin = row_ptr[warpId];
-  const auto segment_end = row_ptr[warpId + 1];
+    const auto segment_begin = row_ptr[row];
+    const auto segment_end = row_ptr[row + 1];
 
-  for (size_t idx = segment_begin + lane; idx < segment_end; idx += cuWarpSize)
-    result += vector_data[col_idx[idx]] * mx_data[idx];
+    for (size_t idx = segment_begin + lane; idx < segment_end;
+         idx += cuWarpSize)
+      result += vector_data[col_idx[idx]] * mx_data[idx];
 
-  result = cuWarpReduce(result, mask);
+    result = cuWarpReduce(result, cuFullMask);
 
-  if (lane == 0)
-    output[warpId] = result;
+    if (lane == 0)
+      output[row] = result;
+  }
 }
 
 template <typename T>
-__global__ void
-csr_dot_vec_1(const T *__restrict mx_data, const size_t *__restrict col_idx,
-              const size_t *__restrict row_ptr, size_t row_ptr_size,
-              const T *__restrict vector_data, T *output) {
+__global__ void csr_dot_vec_1(const T *__restrict mx_data,
+                              const size_t *__restrict col_idx,
+                              const size_t *__restrict row_ptr, size_t rowCnt,
+                              const T *__restrict vector_data, T *output) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  const auto rowCnt = row_ptr_size - 1;
-  if (threadId >= rowCnt)
-    return;
+  const auto threadCnt = blockDim.x * gridDim.x;
 
-  const auto segment_begin = row_ptr[threadId];
-  const auto segment_end = row_ptr[threadId + 1];
+  for (size_t row = threadId; row < rowCnt; row += threadCnt) {
+    const auto segment_begin = row_ptr[row];
+    const auto segment_end = row_ptr[row + 1];
 
-  T result = 0;
+    T result = 0;
 
-  for (size_t idx = segment_begin; idx < segment_end; ++idx)
-    result += vector_data[col_idx[idx]] * mx_data[idx];
+    for (size_t idx = segment_begin; idx < segment_end; ++idx)
+      result += vector_data[col_idx[idx]] * mx_data[idx];
 
-  output[threadId] = result;
+    output[row] = result;
+  }
 }
 
 template <typename T>
@@ -82,14 +82,6 @@ __global__ void vec_norm(const T *__restrict__ vector, size_t size, int l,
     atomicAdd(result, local_res);
 }
 
-template <typename T> struct scale_op : public thrust::unary_function<T, void> {
-  scale_op(T s) : s_(s) {}
-
-  __host__ __device__ void operator()(T &x) { x *= s_; }
-
-  const T s_;
-};
-
 template <typename T>
 __global__ void scale(T *__restrict__ first, size_t size, T scale) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -98,20 +90,6 @@ __global__ void scale(T *__restrict__ first, size_t size, T scale) {
   for (size_t idx = threadId; idx < size; idx += threadCnt)
     first[idx] *= scale;
 }
-
-template <typename T>
-struct add_vector_scaled_op : public thrust::unary_function<size_t, T> {
-  add_vector_scaled_op(const T *first, T scale, const T *second)
-      : first_(first), scale_(scale), second_(second) {}
-
-  __host__ __device__ T operator()(size_t idx) {
-    return first_[idx] + scale_ * second_[idx];
-  }
-
-  const T *first_;
-  T scale_;
-  const T *second_;
-};
 
 template <typename T>
 __global__ void scale_and_add(T *__restrict__ first, T scale,
@@ -134,20 +112,6 @@ __global__ void add_vector_scaled(T *__restrict__ first, T scale,
 }
 
 template <typename T>
-struct sub_vector_scaled_op : public thrust::unary_function<size_t, T> {
-  sub_vector_scaled_op(const T *first, T scale, const T *second)
-      : first_(first), scale_(scale), second_(second) {}
-
-  __host__ __device__ T operator()(size_t idx) {
-    return first_[idx] - scale_ * second_[idx];
-  }
-
-  const T *first_;
-  T scale_;
-  const T *second_;
-};
-
-template <typename T>
 __global__ void sub_vector_scaled(T *__restrict__ first, T scale,
                                   const T *__restrict__ second, size_t size) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
@@ -156,19 +120,6 @@ __global__ void sub_vector_scaled(T *__restrict__ first, T scale,
   for (size_t idx = threadId; idx < size; idx += threadCnt)
     first[idx] = -scale * second[idx] + first[idx];
 }
-
-template <typename T>
-struct mul_vector_op : public thrust::unary_function<size_t, T> {
-  mul_vector_op(const T *first, const T *second)
-      : first_(first), second_(second) {}
-
-  __host__ __device__ T operator()(size_t idx) {
-    return first_[idx] * second_[idx];
-  }
-
-  const T *first_;
-  const T *second_;
-};
 
 template <typename T>
 __global__ void multiply(const T *__restrict__ first,
@@ -185,16 +136,20 @@ __global__ void vec_dot_vec(const T *__restrict__ first,
                             const T *__restrict__ second, size_t size,
                             T *result) {
   const auto threadId = blockDim.x * blockIdx.x + threadIdx.x;
-  const unsigned mask = cuWarpActive(threadId < size);
+  const auto threadCnt = blockDim.x * gridDim.x;
   const auto lane = threadId % cuWarpSize;
-  if (threadId >= size)
-    return;
 
-  T local_res = first[threadId] * second[threadId];
-  local_res = cuWarpReduce(local_res, mask);
+  size_t idx = threadId;
+  unsigned mask = cuWarpActive(idx < size);
+  while (idx < size) {
+    T local_res = first[idx] * second[idx];
+    local_res = cuWarpReduce(local_res, mask);
+    if (lane == 0)
+      atomicAdd(result, local_res);
 
-  if (lane == 0)
-    atomicAdd(result, local_res);
+    idx += threadCnt;
+    mask = cuWarpActive(idx < size);
+  }
 }
 
 } // namespace cgm::cu

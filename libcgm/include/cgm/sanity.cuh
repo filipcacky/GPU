@@ -7,7 +7,7 @@ namespace cgm::cu {
 
 static constexpr size_t cuWarpSize = 32;
 static constexpr size_t cuSM = 48; // read from cuda info
-static constexpr size_t cuMaxThreads = 512;
+static constexpr size_t cuMaxThreads = 1024;
 static constexpr unsigned cuFullMask = 0xffffffff;
 
 __device__ __host__ void cuTry(const char *file, size_t line, const char *fn,
@@ -20,8 +20,9 @@ __device__ __host__ void cuTry(const char *file, size_t line, const char *fn,
 
 #define cuTry(x) cgm::cu::cuTry(__FILE__, __LINE__, __FUNCTION__, (x))
 
-template <typename T> T *cuHostAlloc(size_t n, int type = cudaHostAllocDefault) {
-  T* res;
+template <typename T>
+T *cuHostAlloc(size_t n, int type = cudaHostAllocDefault) {
+  T *res;
   cuTry(cudaHostAlloc(&res, n * sizeof(*res), type));
   return res;
 }
@@ -33,8 +34,13 @@ template <typename T> T *cuDeviceAlloc(size_t n) {
 }
 
 template <typename T, typename U>
-void cuCopy(T *to, const T *from, size_t count, U direction) {
-  cuTry(cudaMemcpy(to, from, count * sizeof(T), direction));
+void cuCopy(T *host, const T *device, size_t count, U direction) {
+  cuTry(cudaMemcpy(host, device, count * sizeof(T), direction));
+}
+
+template <typename T, typename U>
+void cuCopyAsync(T *host, const T *device, size_t count, U direction) {
+  cuTry(cudaMemcpyAsync(host, device, count * sizeof(T), direction));
 }
 
 #define cuHostFree(ptr) cuTry(cudaFreeHost(ptr))
