@@ -44,46 +44,45 @@ tasks = sorted(task_dict.values(), key=lambda x: x.size)
 
 result = []
 
-for task in tasks:
-    cpu_params = [sys.argv[2],
-                  '--lhs', task.a,
-                  '-c', '0']
-    gpu_params = [sys.argv[2],
-                  '--lhs', task.a,
-                  '-c', '1']
+for i in range(10):
+    for task in tasks:
+        cpu_params = [sys.argv[2],
+                      '--lhs', task.a,
+                      '-c', '0']
+        gpu_params = [sys.argv[2],
+                      '--lhs', task.a,
+                      '-c', '1']
 
-    if len(task.b) > 0:
-        cpu_params.append('--rhs')
-        cpu_params.append(task.b)
-        gpu_params.append('--rhs')
-        gpu_params.append(task.b)
+        if len(task.b) > 0:
+            cpu_params.append('--rhs')
+            cpu_params.append(task.b)
+            gpu_params.append('--rhs')
+            gpu_params.append(task.b)
 
-    proc = subprocess.Popen(cpu_params, stdout=subprocess.PIPE)
-    proc.wait()
-    line = bytes.decode(proc.stdout.readline())
-    try:
-        iters_cpu, ns_cpu, mean_nonzero = line.strip().split(' ')
-    except:
-        print(cpu_params)
-        print(line)
-        exit(1)
+        proc = subprocess.Popen(cpu_params, stdout=subprocess.PIPE)
+        proc.wait()
+        line = bytes.decode(proc.stdout.readline())
+        try:
+            iters_cpu, ns_cpu, mean_nonzero = line.strip().split(' ')
+        except:
+            print(cpu_params)
+            print(line)
+            exit(1)
 
-    proc = subprocess.Popen(gpu_params, stdout=subprocess.PIPE)
-    proc.wait()
-    line = bytes.decode(proc.stdout.readline())
-    try:
-        iters_gpu, ns_gpu, mean_nonzero = line.strip().split(' ')
-    except:
-        print(gpu_params)
-        print(line)
-        exit(1)
+        proc = subprocess.Popen(gpu_params, stdout=subprocess.PIPE)
+        proc.wait()
+        line = bytes.decode(proc.stdout.readline())
+        try:
+            iters_gpu, ns_gpu, mean_nonzero = line.strip().split(' ')
+        except:
+            print(gpu_params)
+            print(line)
+            exit(1)
 
-    print(f"{task.a} cpu: {ns_cpu} gpu: {ns_gpu} speedup: {int(ns_cpu) / int(ns_gpu)} mean_nonzero: {mean_nonzero}")
-
-    result.append({"A": task.a, "b": task.b, "size": task.size, "mean_nonzero": mean_nonzero,
-                   "iters_cpu": iters_cpu, "ns_cpu": ns_cpu,
-                   "iters_gpu": iters_gpu, "ns_gpu": ns_gpu,
-                   "speedup": int(ns_cpu)/int(ns_gpu)})
+        result.append({"A": task.a, "b": task.b, "size": task.size, "mean_nonzero": mean_nonzero,
+                       "iters_cpu": iters_cpu, "ns_cpu": ns_cpu,
+                       "iters_gpu": iters_gpu, "ns_gpu": ns_gpu,
+                       "speedup": int(ns_cpu)/int(ns_gpu)})
 
 result = pd.DataFrame(result)
 

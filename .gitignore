@@ -9,6 +9,7 @@ tags.lock
 data/*.txt
 data/*.mtx
 log.txt
+.ipynb_checkpoints
 
 *.aux
 *.fdb_latexmk

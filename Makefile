@@ -11,9 +11,9 @@ build:
 	ninja -C build -v
 
 run_cpu:
-	time ./build/apps/cli/cli -l data/0000027_ex5_A.mtx -r data/0000027_ex5_b.npy -c false -s true
+	time ./build/apps/cli/cli -l data/0007102_Kuu_A.mtx -c false -s true
 
 run_gpu:
-	time ./build/apps/cli/cli -l data/0000027_ex5_A.mtx -r data/0000027_ex5_b.npy -c true -s true
+	time ./build/apps/cli/cli -l data/0007102_Kuu_A.mtx -c true -s true
 
 .PHONY: compdb clean generate build run_cpu run_gpu bench_cpu bench_gpu gdb
